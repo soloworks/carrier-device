@@ -12,40 +12,42 @@ import (
 	"time"
 )
 
-type nec struct {
-	conn      net.Conn
-	ipHost    string
-	ipPort    int
-	id        int
-	connected bool
+// Device is a representation of a NEC screen
+type Device struct {
+	// Communications
+	conn net.Conn
+	ip   struct {
+		connected bool
+		host      string
+		port      int
+	}
+	id int
 	// MetaData
 	PartNumber  string
 	ModelName   string
 	ModelDesc   string
 	FirmwareVer string
 	// Status
-	Input        int
-	VideoMute    bool
-	SignalInput  []bool
-	SignalOutput bool
+	Input     int
+	VideoMute bool
 }
 
 // send pushed command to the switcher
-func (n *nec) getCommand(cmd []byte) {
-	n.send(0x41, cmd)
+func (d *Device) getCommand(cmd []byte) {
+	d.send(0x41, cmd)
 }
 
 // send pushed command to the switcher
-func (n *nec) setCommand(cmd []byte, val []byte) {
+func (d *Device) setCommand(cmd []byte, val []byte) {
 
 	// Build the message
 	msg := new(bytes.Buffer)  // Create Buffer
 	msg.Write(cmd)            // Add Command
 	msg.Write(val)            // Add Value
-	n.send(0x41, msg.Bytes()) // Send It
+	d.send(0x41, msg.Bytes()) // Send It
 }
 
-func (n *nec) send(t byte, m []byte) {
+func (d *Device) send(t byte, m []byte) {
 
 	// Build the message
 	msg := new(bytes.Buffer) // Create Buffer
@@ -57,7 +59,7 @@ func (n *nec) send(t byte, m []byte) {
 	pkt := new(bytes.Buffer)                               // Create Buffer
 	pkt.WriteByte(0x01)                                    // Add SOH
 	pkt.WriteByte(0x30)                                    // Add Reserved
-	pkt.WriteByte(0x40 + byte(n.id))                       // Add Display ID
+	pkt.WriteByte(0x40 + byte(d.id))                       // Add Display ID
 	pkt.WriteByte(0x30)                                    // Add Message Sender is Controller
 	pkt.WriteByte(t)                                       // Add Message type
 	pkt.WriteString(fmt.Sprintf("%02X", len(msg.Bytes()))) // Add Message Length (2 char Hex as Ascii)
@@ -73,65 +75,65 @@ func (n *nec) send(t byte, m []byte) {
 
 	log.Print("Tx::", hex.Dump(pkt.Bytes()))
 
-	n.conn.Write(pkt.Bytes())
+	d.conn.Write(pkt.Bytes())
 
 }
 
 // SetSource sets source s on destination d
 // d is ignored in this device
-func (n *nec) SetSource(s int, d int) {
-	n.conn.Write([]byte(strconv.Itoa(s) + "!"))
+func (d *Device) SetSource(s int, dest int) {
+	d.conn.Write([]byte(strconv.Itoa(s) + "!"))
 }
 
 // GetSource returns current input number
-func (n *nec) GetSource() int {
-	return n.Input
+func (d *Device) GetSource() int {
+	return d.Input
 }
 
 // SetPower is unsued on this device
-func (n *nec) SetPower(p bool) {
+func (d *Device) SetPower(p bool) {
 	switch p {
 	case true:
-		n.setCommand([]byte("C203D6"), []byte("0001"))
+		d.setCommand([]byte("C203D6"), []byte("0001"))
 	case false:
-		n.setCommand([]byte("C203D6"), []byte("0004"))
+		d.setCommand([]byte("C203D6"), []byte("0004"))
 	}
 }
 
-// Getpower always returns true on this device
-func (n *nec) GetPower() bool { return true }
+// GetPower always returns true on this device
+func (d *Device) GetPower() bool { return true }
 
-// New creates a new instance, and initialises communication
-func (n *nec) Init(ip string) error {
+// Init sets defaults, and initialises communication
+func (d *Device) Init(ip string) error {
 
-	n.id = 1        // Default ID
-	n.ipPort = 7142 // Default Port
+	d.id = 1         // Default ID
+	d.ip.port = 7142 // Default Port
 
 	// Store Host & Port
 	for i, x := range strings.Split(ip, `:`) {
 		switch i {
 		case 0:
-			n.ipHost = x
+			d.ip.host = x
 		case 1:
-			n.ipPort, _ = strconv.Atoi(x)
+			d.ip.port, _ = strconv.Atoi(x)
 		}
 	}
 
 	go func() {
 		for {
 			var err error
-			n.conn, err = net.Dial("tcp", n.ipHost+`:`+strconv.Itoa(+n.ipPort))
+			d.conn, err = net.Dial("tcp", d.ip.host+`:`+strconv.Itoa(+d.ip.port))
 			if err != nil {
 				log.Println("Failed to connect:", err.Error())
-				log.Println("Trying reset the connection...")
+				log.Println("Trying reset the connectiod...")
 				time.Sleep(time.Millisecond * time.Duration(2000))
 			} else {
 				log.Println("Connected")
 				// Create new Reader
-				r := bufio.NewReader(n.conn)
+				r := bufio.NewReader(d.conn)
 
 				// Init Device
-				n.getCommand([]byte("01D6")) // Query Power State
+				d.getCommand([]byte("01D6")) // Query Power State
 
 				for {
 					message, err := r.ReadBytes('\x0D')

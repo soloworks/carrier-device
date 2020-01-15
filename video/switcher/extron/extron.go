@@ -10,80 +10,88 @@ import (
 	"time"
 )
 
-type extron struct {
-	conn        net.Conn
-	rxLineCount int
-	ipHost      string
-	ipPort      int
+// Device is a representation of an Extron Switcher
+type Device struct {
+	// Communications
+	conn net.Conn
+	ip   struct {
+		connected bool
+		host      string
+		port      int
+	}
 	// MetaData
 	PartNumber  string
 	ModelName   string
 	ModelDesc   string
 	FirmwareVer string
 	// Status
-	Input        int
-	VideoMute    bool
-	SignalInput  []bool
-	SignalOutput bool
+	Input     int
+	VideoMute bool
+	signal    struct {
+		input  []bool
+		output bool
+	}
+	// Misc
+	rxLineCount int
 }
 
 // sendSpecial is a wrapper for send which adds escape chars as required by some commands
-func (e *extron) sendSpecial(s string) {
-	e.send("\x1B" + s + "\x0D")
+func (d *Device) sendSpecial(s string) {
+	d.send("\x1B" + s + "\x0D")
 }
 
 // send pushed command to the switcher
-func (e *extron) send(s string) {
-	e.conn.Write([]byte(s))
+func (d *Device) send(s string) {
+	d.conn.Write([]byte(s))
 	s = strconv.QuoteToASCII(s)
 	// log.Print("Tx::", s[1:len(s)-1])
 }
 
 // SetSource sets source s on destination d
 // d is ignored in this device
-func (e *extron) SetSource(s int, d int) {
-	e.conn.Write([]byte(strconv.Itoa(s) + "!"))
+func (d *Device) SetSource(s int, dest int) {
+	d.conn.Write([]byte(strconv.Itoa(s) + "!"))
 }
 
 // GetSource returns current input number
-func (e *extron) GetSource() int {
-	return e.Input
+func (d *Device) GetSource() int {
+	return d.Input
 }
 
 // SetPower is unsued on this device
-func (e *extron) SetPower(p bool) {}
+func (d *Device) SetPower(p bool) {}
 
-// Getpower always returns true on this device
-func (e *extron) GetPower() bool { return true }
+// GetPower always returns true on this device
+func (d *Device) GetPower() bool { return true }
 
-// New creates a new instance, and initialises communication
-func (e *extron) Init(ip string) error {
+// Init sets defaults, and initialises communication
+func (d *Device) Init(ip string) error {
 
 	// Default Port
-	e.ipPort = 23
+	d.ip.port = 23
 
 	// Store Host & Port
 	for i, x := range strings.Split(ip, `:`) {
 		switch i {
 		case 0:
-			e.ipHost = x
+			d.ip.host = x
 		case 1:
-			e.ipPort, _ = strconv.Atoi(x)
+			d.ip.port, _ = strconv.Atoi(x)
 		}
 	}
 
 	go func() {
 		for {
 			var err error
-			e.conn, err = net.Dial("tcp", e.ipHost+`:`+strconv.Itoa(+e.ipPort))
+			d.conn, err = net.Dial("tcp", d.ip.host+`:`+strconv.Itoa(+d.ip.port))
 			if err != nil {
 				fmt.Println("Failed to connect:", err.Error())
 				fmt.Println("Trying reset the connection...")
 				time.Sleep(time.Millisecond * time.Duration(2000))
 			} else {
 				// Create new Reader
-				r := bufio.NewReader(e.conn)
-				e.rxLineCount = 0
+				r := bufio.NewReader(d.conn)
+				d.rxLineCount = 0
 				for {
 					message, err := r.ReadString('\n')
 					if err != nil {
@@ -91,49 +99,49 @@ func (e *extron) Init(ip string) error {
 						break
 					}
 					log.Print("Rx::", message)
-					e.rxLineCount++ // increment line count
+					d.rxLineCount++ // increment line count
 
 					// Init Device
-					if e.rxLineCount == 3 {
-						e.sendSpecial("3CV") // Set Verbose Mode
-						e.send("N")          // Request Part Number
-						e.send("1I")         // Query Model Name
-						e.send("2I")         // Query Model Description
-						e.send("Q")          // Query firmware version
-						e.send("!")          // Query Input Number
+					if d.rxLineCount == 3 {
+						d.sendSpecial("3CV") // Set Verbose Mode
+						d.send("N")          // Request Part Number
+						d.send("1I")         // Query Model Name
+						d.send("2I")         // Query Model Description
+						d.send("Q")          // Query firmware version
+						d.send("!")          // Query Input Number
 					}
 
 					// Process Feedback
 					message = strings.TrimSpace(message)
 					switch {
 					case strings.HasPrefix(message, "Pno"):
-						e.PartNumber = strings.TrimPrefix(message, "Pno")
+						d.PartNumber = strings.TrimPrefix(message, "Pno")
 						// Request Additional Feedback
-						switch e.PartNumber {
+						switch d.PartNumber {
 						case "60-1603-01", "60-1604-01", "60-1605-01", "60-1606-01":
-							e.sendSpecial("LS") // Request status of all signals
+							d.sendSpecial("LS") // Request status of all signals
 
 						case "60-1238-51":
-							e.sendSpecial("0LS") // Request status of all signals
+							d.sendSpecial("0LS") // Request status of all signals
 						}
 					case strings.HasPrefix(message, "Info01*"):
-						e.ModelName = strings.TrimPrefix(message, "Info01*")
+						d.ModelName = strings.TrimPrefix(message, "Info01*")
 					case strings.HasPrefix(message, "Info02*"):
-						e.ModelDesc = strings.TrimPrefix(message, "Info02*")
+						d.ModelDesc = strings.TrimPrefix(message, "Info02*")
 					case strings.HasPrefix(message, "Info02*"):
-						e.FirmwareVer = strings.TrimPrefix(message, "Ver01*")
+						d.FirmwareVer = strings.TrimPrefix(message, "Ver01*")
 					case strings.HasPrefix(message, "Sig"):
 						x := strings.TrimPrefix(message, "Sig")
 						// Pull out the output Status
 						y := strings.Split(x, `*`)
-						e.SignalOutput, _ = strconv.ParseBool(y[1])
+						d.signal.output, _ = strconv.ParseBool(y[1])
 						// Pull out the Input Status
 						z := strings.Split(y[0], ` `)
 						for i, s := range z {
-							if len(e.SignalInput) <= i {
-								e.SignalInput = append(e.SignalInput, false)
+							if len(d.signal.input) <= i {
+								d.signal.input = append(d.signal.input, false)
 							}
-							e.SignalInput[i], _ = strconv.ParseBool(s)
+							d.signal.input[i], _ = strconv.ParseBool(s)
 						}
 					}
 				}
