@@ -47,6 +47,11 @@ func (d *Device) send(s string) {
 	// log.Print("Tx::", s[1:len(s)-1])
 }
 
+// GetHost returns current host
+func (d *Device) GetHost() string {
+	return d.ip.host
+}
+
 // SetSource sets source s on destination d
 // d is ignored in this device
 func (d *Device) SetSource(s int, dest int) {

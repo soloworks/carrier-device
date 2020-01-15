@@ -79,6 +79,11 @@ func (d *Device) send(t byte, m []byte) {
 
 }
 
+// GetHost returns current host
+func (d *Device) GetHost() string {
+	return d.ip.host
+}
+
 // SetSource sets source s on destination d
 // d is ignored in this device
 func (d *Device) SetSource(s int, dest int) {
