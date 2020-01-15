@@ -48,7 +48,7 @@ func (d *Device) send(s string) {
 }
 
 // GetHost returns current host
-func (d *Device) GetHost() string {
+func (d Device) GetHost() string {
 	return d.ip.host
 }
 
