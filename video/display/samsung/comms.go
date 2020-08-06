@@ -50,12 +50,13 @@ func (d *Display) EventControl() chan<- event.Event {
 }
 func (d *Display) commsLoop() {
 	for {
+		log.Infof("Connecting to Display (ID:%02d)", d.comms.id)
 		var err error
 		d.comms.conn, err = net.Dial("tcp", d.comms.host+`:`+strconv.Itoa(+d.comms.port))
 		if err != nil {
-			log.Println("Failed to connect:", err.Error())
-			log.Println("Trying reset the connectiod...")
-			time.Sleep(time.Millisecond * time.Duration(2000))
+			log.Errorf("Connection Failed, Retry in 10 seconds (%v)", err.Error())
+			time.Sleep(time.Millisecond * time.Duration(10000))
+
 		} else {
 			log.Println("Connected")
 			// Create new Reader

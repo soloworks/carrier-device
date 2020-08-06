@@ -34,7 +34,6 @@ type Config struct {
 
 // New returns a new Device instance
 func New(config Config) *Display {
-
 	d := &Display{
 		eventFeedback: make(chan event.Event),
 		eventControl:  make(chan event.Event),
@@ -46,10 +45,14 @@ func New(config Config) *Display {
 	}
 
 	// Configure logger
+	lf := logrus.Fields{
+		"package": "dev-display-samsung",
+		"host":    d.comms.host,
+	}
 	if config.Logger == nil {
-		log = logrus.New().WithField("package", "dev-display-samsung")
+		log = logrus.New().WithFields(lf)
 	} else {
-		log = config.Logger.WithFields(logrus.Fields{"package": "dev-display-samsung"})
+		log = config.Logger.WithFields(lf)
 	}
 
 	// Store ID
