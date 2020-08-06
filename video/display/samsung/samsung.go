@@ -21,7 +21,7 @@ type Display struct {
 	eventFeedback chan event.Event
 	eventControl  chan event.Event
 	comms         comms
-	md            metaData // MetaData
+	metaData      metaData // MetaData
 	state         state    // Status
 }
 
