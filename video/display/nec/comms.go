@@ -1,9 +1,13 @@
 package nec
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"net"
+	"strconv"
+	"time"
 
 	event "bitbucket.org/carrierlabs/dev-util-event"
 )
@@ -57,7 +61,6 @@ func (d *Display) send(t byte, m []byte) {
 }
 
 // EventFeedback returns a read-only channel which emits events as they occur on the
-// base server
 func (d *Display) EventFeedback() <-chan event.Event {
 	return d.eventFeedback
 }
@@ -65,4 +68,34 @@ func (d *Display) EventFeedback() <-chan event.Event {
 // EventControl returns a write-only channel for sending control events to the device
 func (d *Display) EventControl() chan<- event.Event {
 	return d.eventFeedback
+}
+
+func (d *Display) commsLoop() {
+	for {
+		var err error
+		d.conn, err = net.Dial("tcp", d.ip.host+`:`+strconv.Itoa(+d.ip.port))
+		if err != nil {
+			log.Errorf("Failed to connect: %v :Waiting to retry", err.Error())
+			time.Sleep(time.Millisecond * time.Duration(2000))
+		} else {
+			log.Info("Connected")
+			// Create new Reader
+			r := bufio.NewReader(d.conn)
+
+			// Init Device
+			d.getCommand([]byte("01D6")) // Query Power State
+
+			for {
+				message, err := r.ReadBytes('\x0D')
+				if err != nil {
+					log.Println("RxErr::", err)
+					break
+				}
+				log.Print("Rx::", hex.Dump(message))
+
+				// Process Feedback
+
+			}
+		}
+	}
 }

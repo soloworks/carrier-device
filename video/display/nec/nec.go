@@ -1,12 +1,9 @@
 package nec
 
 import (
-	"bufio"
-	"encoding/hex"
 	"net"
 	"strconv"
 	"strings"
-	"time"
 
 	event "bitbucket.org/carrierlabs/dev-util-event"
 	"github.com/sirupsen/logrus"
@@ -44,30 +41,6 @@ type Config struct {
 	Logger *logrus.Logger
 }
 
-// SetSource sets source s on destination d
-// d is ignored in this device
-func (d *Display) SetSource(s int, dest int) {
-	d.conn.Write([]byte(strconv.Itoa(s) + "!"))
-}
-
-// GetSource returns current input number
-func (d *Display) GetSource() int {
-	return d.Input
-}
-
-// SetPower is unsued on this device
-func (d *Display) SetPower(p bool) {
-	switch p {
-	case true:
-		d.setCommand([]byte("C203D6"), []byte("0001"))
-	case false:
-		d.setCommand([]byte("C203D6"), []byte("0004"))
-	}
-}
-
-// GetPower always returns true on this device
-func (d *Display) GetPower() bool { return true }
-
 // New returns a new Device instance
 func New(config Config) *Display {
 
@@ -85,10 +58,9 @@ func New(config Config) *Display {
 	}
 
 	// Store ID
-	if config.ID == 0 {
+	d.id = config.ID
+	if d.id == 0 {
 		d.id = 1 // Default ID
-	} else {
-		d.id = config.ID
 	}
 
 	// Store Host & Port
@@ -103,35 +75,5 @@ func New(config Config) *Display {
 
 	go d.commsLoop()
 
-	return nil
-}
-
-func (d *Display) commsLoop() {
-	for {
-		var err error
-		d.conn, err = net.Dial("tcp", d.ip.host+`:`+strconv.Itoa(+d.ip.port))
-		if err != nil {
-			log.Errorf("Failed to connect: %v :Waiting to retry", err.Error())
-			time.Sleep(time.Millisecond * time.Duration(2000))
-		} else {
-			log.Info("Connected")
-			// Create new Reader
-			r := bufio.NewReader(d.conn)
-
-			// Init Device
-			d.getCommand([]byte("01D6")) // Query Power State
-
-			for {
-				message, err := r.ReadBytes('\x0D')
-				if err != nil {
-					log.Println("RxErr::", err)
-					break
-				}
-				log.Print("Rx::", hex.Dump(message))
-
-				// Process Feedback
-
-			}
-		}
-	}
+	return d
 }
