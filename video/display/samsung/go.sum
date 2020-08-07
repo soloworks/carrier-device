@@ -1,3 +1,7 @@
+bitbucket.org/carrierlabs/dev-util-conn v0.0.0-20200211140322-6d46d851ba3b h1:S65fGzCvyJF6psQo0mNB5qPoc+0IcoijbIGpTgk/Avw=
+bitbucket.org/carrierlabs/dev-util-conn v0.0.0-20200211140322-6d46d851ba3b/go.mod h1:c5hOal/gtx16XS6wpKWt23oCNWcNc2SG3uPhHAKNboE=
+bitbucket.org/carrierlabs/dev-util-conn v0.0.0-20200807142735-e6119b6b68ef h1:w8lsVsH3/pK6mq/DDkdcO44T5HAvn6K/3nB1a9p871o=
+bitbucket.org/carrierlabs/dev-util-conn v0.0.0-20200807142735-e6119b6b68ef/go.mod h1:9zkQTbtV6QQaa6dJ1vbVUM4qkQwWnArIovbtvvSyRrE=
 bitbucket.org/carrierlabs/dev-util-event v0.0.0-20200701185450-e43f008347d7 h1:ovdiPG5dIte3Rnj59ro7Z8XHM3wPfpKbbpODb4UuK+U=
 bitbucket.org/carrierlabs/dev-util-event v0.0.0-20200701185450-e43f008347d7/go.mod h1:h1yrTvW1sVvIGiZz6LrvzI4ybc1A7GTy+wniN90aJtc=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

@@ -1,6 +1,7 @@
 package samsung
 
 import (
+	conn "bitbucket.org/carrierlabs/dev-util-conn"
 	event "bitbucket.org/carrierlabs/dev-util-event"
 	"github.com/sirupsen/logrus"
 )
@@ -20,9 +21,10 @@ type Display struct {
 	// Channels
 	eventFeedback chan event.Event
 	eventControl  chan event.Event
-	comms         comms
+	conn          *conn.Conn
 	metaData      metaData // MetaData
 	state         state    // Status
+	id            int
 }
 
 // Config allows fields to be set to configure a new instance
@@ -35,19 +37,20 @@ type Config struct {
 // New returns a new Device instance
 func New(config Config) *Display {
 	d := &Display{
-		eventFeedback: make(chan event.Event),
-		eventControl:  make(chan event.Event),
-		comms: comms{
-			id:   config.ID,
-			host: config.Host,
-			port: 1515,
-		},
+		eventFeedback: make(chan event.Event, 50),
+		eventControl:  make(chan event.Event, 50),
+	}
+
+	// Store ID
+	if d.id == 0 {
+		d.id = 1 // Default ID
 	}
 
 	// Configure logger
 	lf := logrus.Fields{
 		"package": "dev-display-samsung",
-		"host":    d.comms.host,
+		"host":    config.Host,
+		"id":      d.id,
 	}
 	if config.Logger == nil {
 		log = logrus.New().WithFields(lf)
@@ -55,12 +58,30 @@ func New(config Config) *Display {
 		log = config.Logger.WithFields(lf)
 	}
 
-	// Store ID
-	if d.comms.id == 0 {
-		d.comms.id = 1 // Default ID
+	// Spin up a new device core
+	var err error
+	d.conn, err = conn.New(conn.Config{
+		Host:              config.Host,
+		Port:              1515,
+		Encoder:           d.encoder,
+		Decoder:           d.decoder,
+		ConnectionTimeout: 20,
+		ResponseTimeout:   5,
+	}) // Generate a new device connection
+	if err != nil {
+		log.Error(err)
 	}
 
-	go d.commsLoop()
-
 	return d
+}
+
+// EventFeedback returns a read-only channel which emits events as they occur on the
+// base server
+func (d *Display) EventFeedback() <-chan event.Event {
+	return d.eventFeedback
+}
+
+// EventControl returns a write-only channel for sending control events to the device
+func (d *Display) EventControl() chan<- event.Event {
+	return d.eventFeedback
 }
